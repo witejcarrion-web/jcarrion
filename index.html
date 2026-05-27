@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Centro de Soporte - Helpdesk</title>
+    <!-- Tailwind CSS para diseño moderno y rápido -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Supabase JS Library -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        .tab-active {
+            border-bottom: 3px solid #3b82f6;
+            color: #1d4ed8;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans text-gray-800">
+
+    <!-- LOGIN MODAL / SCREEN (Visible por defecto si no hay sesión) -->
+    <div id="login-screen" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white p-8 rounded-lg shadow-xl max-w-md w-full">
+            <h2 class="text-2xl font-bold text-center mb-6 text-blue-900">CENTRO DE SOPORTE</h2>
+            <p class="text-sm text-gray-600 text-center mb-6">Inicia sesión con tu cuenta de agente</p>
+            <form id="login-form" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Email</label>
+                    <input type="email" id="login-email" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Contraseña</label>
+                    <input type="password" id="login-password" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <button type="submit" class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition font-medium">Ingresar al Panel</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MAIN APP INTERFACE (Oculta hasta que se loguee) -->
+    <div id="app-screen" class="hidden min-h-screen flex flex-col">
+        
+        <!-- HEADER SUPERIOR -->
+        <header class="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center shadow-sm">
+            <div class="flex items-center space-x-4">
+                <h1 class="text-xl font-black tracking-wider text-blue-900">CENTRO DE SOPORTE</h1>
+                <span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded font-bold">v1.0 - Online</span>
+            </div>
+            <div class="flex items-center space-x-4 text-sm">
+                <span>Bienvenido, <strong id="user-display-name">Agente</strong></span>
+                <button id="logout-btn" class="text-red-600 hover:underline font-medium">Cerrar sesión</button>
+            </div>
+        </header>
+
+        <!-- BARRA DE FILTROS (Estilo osTicket) -->
+        <section class="bg-gray-50 border-b border-gray-200 px-6 py-3 flex flex-wrap gap-4 items-center">
+            <div>
+                <select id="filter-dept" class="bg-white border border-gray-300 text-sm rounded px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                    <option value="">Seleccione Departamento</option>
+                </select>
+            </div>
+            <div>
+                <select id="filter-priority" class="bg-white border border-gray-300 text-sm rounded px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                    <option value="">Seleccione Prioridad</option>
+                    <option value="Baja">Baja</option>
+                    <option value="Normal">Normal</option>
+                    <option value="Alta">Alta</option>
+                    <option value="Emergencia">Emergencia</option>
+                </select>
+            </div>
+            <button id="btn-apply-filters" class="bg-blue-900 text-white text-sm px-4 py-1.5 rounded hover:bg-blue-800 transition">Filtrar 🔍</button>
+            <button id="btn-reset-filters" class="bg-gray-300 text-gray-700 text-sm px-4 py-1.5 rounded hover:bg-gray-400 transition">Restablecer ↻</button>
+        </section>
+
+        <!-- PESTAÑAS DE NAVEGACIÓN Y CONTADORES -->
+        <main class="flex-1 p-6">
+            <div class="border-b border-gray-200 mb-6 flex justify-between items-center">
+                <div class="flex space-x-6 text-sm font-medium text-gray-500">
+                    <button id="tab-unassigned" class="pb-3 tab-active transition">Tickets Sin Asignar (<span id="count-unassigned">0</span>)</button>
+                    <button id="tab-my-tickets" class="pb-3 hover:text-gray-700 transition">Mis Tickets (<span id="count-my">0</span>)</button>
+                    <button id="tab-all-tickets" class="pb-3 hover:text-gray-700 transition">Todos los Tickets (<span id="count-all">0</span>)</button>
+                </div>
+                
+                <!-- Botón para abrir nuevo ticket manual -->
+                <button id="btn-new-ticket" class="bg-green-600 text-white text-xs font-bold px-3 py-2 rounded mb-2 hover:bg-green-700 transition">+ Nuevo Ticket</button>
+            </div>
+
+            <!-- TABLA DE TICKETS -->
+            <div class="bg-white rounded-lg shadow overflow-hidden">
+                <table class="min-w-full divide-y divide-gray-200 text-left text-sm">
+                    <thead class="bg-gray-50 text-gray-700 uppercase text-xs font-bold">
+                        <tr>
+                            <th class="px-6 py-3 w-10"><input type="checkbox" class="rounded border-gray-300"></th>
+                            <th class="px-6 py-3">Número</th>
+                            <th class="px-6 py-3">Fecha Creación</th>
+                            <th class="px-6 py-3">Asunto</th>
+                            <th class="px-6 py-3">Peticionario</th>
+                            <th class="px-6 py-3">Estado</th>
+                            <th class="px-6 py-3">Prioridad</th>
+                            <th class="px-6 py-3">Departamento</th>
+                            <th class="px-6 py-3">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tickets-table-body" class="divide-y divide-gray-200 bg-white">
+                        <!-- Cargando dinámicamente -->
+                        <tr>
+                            <td colspan="9" class="px-6 py-10 text-center text-gray-500">Inicia sesión o configura tus credenciales para cargar los tickets...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <!-- MODAL NUEVO TICKET -->
+    <div id="new-ticket-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-lg shadow-xl max-w-lg w-full">
+            <h3 class="text-lg font-bold mb-4 text-gray-900">Crear Nuevo Ticket</h3>
+            <form id="new-ticket-form" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase">Nombre del Peticionario</label>
+                    <input type="text" id="ticket-client-name" required class="mt-1 block w-full px-3 py-1.5 border border-gray-300 rounded-md">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase">Email del Peticionario</label>
+                    <input type="email" id="ticket-client-email" required class="mt-1 block w-full px-3 py-1.5 border border-gray-300 rounded-md">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-700 uppercase">Asunto de la Incidencia</label>
+                    <input type="text" id="ticket-subject" required class="mt-1 block w-full px-3 py-1.5 border border-gray-300 rounded-md">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase">Departamento</label>
+                        <select id="ticket-dept" required class="mt-1 block w-full px-3 py-1.5 border border-gray-300 bg-white rounded-md"></select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 uppercase">Prioridad</label>
+                        <select id="ticket-priority" class="mt-1 block w-full px-3 py-1.5 border border-gray-300 bg-white rounded-md">
+                            <option value="Baja">Baja</option>
+                            <option value="Normal" selected>Normal</option>
+                            <option value="Alta">Alta</option>
+                            <option value="Emergencia">Emergencia</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="flex justify-end space-x-3 pt-2">
+                    <button type="button" id="btn-close-modal" class="bg-gray-300 text-gray-700 px-4 py-2 rounded text-sm">Cancelar</button>
+                    <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">Guardar Ticket</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Script Principal de la Aplicación -->
+    <script src="js/app.js"></script>
+</body>
+</html>
