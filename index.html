@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control de Guardias y Vacaciones (Multi-Año)</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary: #1a1a1a;
+            --accent-yellow: #ffcc00;
+            --accent-red: #e63b2e;
+            --accent-blue: #0055ff;
+            --background: #f5f0e8;
+            --card-light: #ffffff;
+            --border-width: 3px;
+            --offset-shadow: 5px;
+            
+            --sergio-color: var(--accent-blue);
+            --sergio-bg: #e6f0ff;
+            --joaquin-color: var(--accent-red);
+            --joaquin-bg: #ffebeb;
+            
+            --vacas-joaquin-bg: var(--primary);
+            --vacas-joaquin-color: #ffffff;
+            --vacas-sergio-bg: var(--accent-yellow);
+            --vacas-sergio-color: var(--primary);
+            
+            --punto-joaquin: var(--accent-red);
+            --punto-sergio: var(--accent-blue);
+            --borde: var(--primary);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background-color: var(--background);
+            color: var(--primary);
+            padding: 20px;
+            padding-bottom: 100px; /* Margen para evitar solapes con la barra inferior */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* --- HEADER --- */
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            width: 100%;
+            max-width: 1200px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+        }
+
+        header h1 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 2rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            background-color: var(--primary);
+            color: var(--accent-yellow);
+            padding: 6px 16px;
+            letter-spacing: -1px;
+            display: inline-block;
+            border: var(--border-width) solid var(--primary);
+        }
+
+        header p {
+            color: var(--primary);
+            font-size: 0.95rem;
+            font-weight: 500;
+        }
+
+        /* --- BOTONES DE AÑO SUPERIORES --- */
+        .year-switcher {
+            display: flex;
+            gap: 10px;
+            margin-top: 5px;
+        }
+
+        .btn-anio {
+            font-family: 'Space Grotesk', sans-serif;
+            padding: 8px 16px;
+            border: var(--border-width) solid var(--primary);
+            background: #ffffff;
+            color: var(--primary);
+            cursor: pointer;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 0.95rem;
+            box-shadow: 3px 3px 0px var(--primary);
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+
+        .btn-anio:hover {
+            background: var(--primary);
+            color: #ffffff;
+        }
+
+        .btn-anio.activo {
+            background: var(--accent-yellow);
+            color: var(--primary);
+            transform: translate(2px, 2px);
+            box-shadow: 1px 1px 0px var(--primary);
+        }
+
+        /* --- BARRA INFERIOR FIJA --- */
+        .bottom-navbar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: var(--background);
+            border-top: var(--border-width) solid var(--primary);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding: 12px 0;
+            z-index: 1000;
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            color: var(--primary);
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 700;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            gap: 4px;
+            flex: 1;
+            transition: background-color 0.1s, color 0.1s;
+        }
+
+        .nav-item svg {
+            width: 24px;
+            height: 24px;
+            fill: var(--primary);
+            transition: fill 0.1s;
+        }
+
+        .nav-item:hover {
+            background-color: rgba(255, 204, 0, 0.15);
+        }
+
+        .nav-item.active {
+            background-color: var(--accent-blue);
+            color: #ffffff;
+        }
+
+        .nav-item.active svg {
+            fill: #ffffff;
+        }
+
+        /* Buscador Rápido */
+        .buscador-contenedor {
+            width: 100%;
+            max-width: 1200px;
+            background: var(--card-light);
+            border: var(--border-width) solid var(--primary);
+            box-shadow: var(--offset-shadow) var(--offset-shadow) 0px 0px var(--primary);
+            padding: 20px;
+            margin-bottom: 25px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .buscador-controles {
+            display: flex;
+            gap: 12px;
+            width: 100%;
+            max-width: 500px;
+        }
+
+        .buscador-contenedor input[type="date"] {
+            flex: 1;
+            background: var(--card-light);
+            border: 2px solid var(--primary);
+            color: var(--primary);
+            padding: 10px;
+            font-size: 1rem;
+            outline: none;
+            font-weight: 500;
+        }
+
+        .btn-limpiar {
+            background: var(--card-light);
+            border: 2px solid var(--primary);
+            color: var(--primary);
+            padding: 0 20px;
+            cursor: pointer;
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 0.9rem;
+        }
+
+        .btn-limpiar:hover {
+            background: #fff5f5;
+            color: var(--accent-red);
+            border-color: var(--accent-red);
+        }
+
+        .buscador-resultado {
+            font-size: 1rem;
+            font-weight: 600;
+            text-align: center;
+            min-height: 24px;
+            color: var(--primary);
+        }
+
+        /* Modos Vacaciones */
+        .selector-modo {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 25px;
+        }
+
+        .btn-modo {
+            background: var(--card-light);
+            border: var(--border-width) solid var(--primary);
+            color: var(--primary);
+            padding: 10px 24px;
+            cursor: pointer;
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 0.95rem;
+            box-shadow: 3px 3px 0px 0px var(--primary);
+            transition: transform 0.05s ease, box-shadow 0.05s ease;
+        }
+
+        .btn-modo.activo[data-modo="Joaquín"] {
+            background: var(--primary);
+            color: #ffffff;
+        }
+
+        .btn-modo.activo[data-modo="Sergio"] {
+            background: var(--accent-yellow);
+            color: var(--primary);
+        }
+
+        /* Resumen Leyenda */
+        .panel-resumen {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            width: 100%;
+            max-width: 1200px;
+            margin-bottom: 35px;
+        }
+
+        .tarjeta-usuario {
+            background: var(--card-light);
+            border: var(--border-width) solid var(--primary);
+            box-shadow: var(--offset-shadow) var(--offset-shadow) 0px 0px var(--primary);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .tarjeta-usuario.sergio { border-top: 6px solid var(--sergio-color); }
+        .tarjeta-usuario.joaquin { border-top: 6px solid var(--joaquin-color); }
+
+        .user-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: bold;
+            font-size: 1.15rem;
+            text-transform: uppercase;
+        }
+
+        .guardias-mes-lista {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            font-size: 0.8rem;
+            text-align: center;
+        }
+
+        .mes-item {
+            background: var(--background);
+            padding: 6px 4px;
+            border: 2px solid var(--primary);
+            font-family: 'Space Grotesk', sans-serif;
+            text-transform: uppercase;
+        }
+
+        .mes-item span {
+            display: block;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
+        /* Malla Calendario */
+        .calendario-anual {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        .mes-contenedor {
+            background: var(--card-light);
+            border: var(--border-width) solid var(--primary);
+            box-shadow: var(--offset-shadow) var(--offset-shadow) 0px 0px var(--primary);
+            padding: 20px;
+        }
+
+        .mes-titulo {
+            text-align: center;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.25rem;
+            font-weight: bold;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            border-bottom: 2px solid var(--primary);
+            padding-bottom: 6px;
+        }
+
+        .dias-semana-grid, .dias-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            text-align: center;
+        }
+
+        .dias-semana-grid div {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 0.85rem;
+            font-weight: bold;
+            padding-bottom: 10px;
+        }
+
+        .dia {
+            aspect-ratio: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            position: relative;
+            margin: 2px;
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+
+        .dia.vacio {
+            cursor: default;
+            border: 1px solid transparent;
+        }
+
+        .dia.guardia-sergio {
+            background-color: var(--sergio-bg);
+            color: var(--sergio-color);
+            font-weight: bold;
+            border: 1px solid var(--sergio-color);
+        }
+        .dia.guardia-sergio::after {
+            content: 'S';
+            position: absolute;
+            bottom: 2px;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 0.6rem;
+            font-weight: bold;
+        }
+
+        .dia.guardia-joaquin {
+            background-color: var(--joaquin-bg);
+            color: var(--joaquin-color);
+            font-weight: bold;
+            border: 1px solid var(--joaquin-color);
+        }
+        .dia.guardia-joaquin::after {
+            content: 'J';
+            position: absolute;
+            bottom: 2px;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 0.6rem;
+            font-weight: bold;
+        }
+
+        .dia.v-joaquin {
+            background-color: var(--primary) !important;
+            color: #ffffff !important;
+            border-color: var(--primary) !important;
+        }
+        
+        .dia.v-sergio {
+            background-color: var(--accent-yellow) !important;
+            color: var(--primary) !important;
+            border-color: var(--primary) !important;
+        }
+
+        .dia.v-joaquin::before {
+            content: ''; position: absolute; top: 4px; left: 4px; width: 5px; height: 5px; background-color: var(--accent-red);
+        }
+        
+        .dia.v-sergio::before {
+            content: ''; position: absolute; top: 4px; right: 4px; width: 5px; height: 5px; background-color: var(--accent-blue);
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1 id="titulo-principal">Guardias 2026</h1>
+        <p>Departamento de Informática</p>
+        <div class="year-switcher">
+            <button class="btn-anio activo" onclick="cambiarAnio(2026)">2026</button>
+            <button class="btn-anio" onclick="cambiarAnio(2027)">2027</button>
+        </div>
+    </header>
+
+    <div class="buscador-contenedor">
+        <label id="label-buscador" style="font-family: 'Space Grotesk', sans-serif; font-size: 0.95rem; font-weight: bold; text-transform: uppercase;"> Buscador rápido de guardia (2026):</label>
+        <div class="buscador-controles">
+            <input type="date" id="buscar-fecha" min="2026-01-01" max="2026-12-31">
+            <button class="btn-limpiar" onclick="limpiarBusqueda()">Limpiar</button>
+        </div>
+        <div class="buscador-resultado" id="resultado-busqueda"></div>
+    </div>
+
+    <div style="text-align: center; margin-bottom: 8px; font-family: 'Space Grotesk', sans-serif; font-size: 0.9rem; font-weight: bold; text-transform: uppercase;">Marca tus vacaciones</div>
+    <div class="selector-modo">
+        <button class="btn-modo activo" data-modo="Joaquín">JOAQUÍN</button>
+        <button class="btn-modo" data-modo="Sergio">SERGIO</button>
+    </div>
+
+    <div class="panel-resumen">
+        <div class="tarjeta-usuario sergio">
+            <div class="user-header">
+                <span style="color: var(--sergio-color)">● Sergio</span>
+                <span id="total-sergio">Total Año: 0</span>
+            </div>
+            <div class="guardias-mes-lista" id="lista-meses-sergio"></div>
+        </div>
+
+        <div class="tarjeta-usuario joaquin">
+            <div class="user-header">
+                <span style="color: var(--joaquin-color)">● Joaquín </span>
+                <span id="total-joaquin">Total Año: 0</span>
+            </div>
+            <div class="guardias-mes-lista" id="lista-meses-joaquin"></div>
+        </div>
+    </div>
+
+    <div class="calendario-anual" id="calendario-completo"></div>
+
+    <nav class="bottom-navbar">
+        <a href="index.html" class="nav-item">
+            <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"></path></svg>
+            Inicio
+        </a>
+        <a href="vacaciones.html" class="nav-item">
+            <svg viewBox="0 0 24 24"><path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L14 19v-5.5l8 2.5z"></path></svg>
+            Vacaciones
+        </a>
+        <a href="guardias.html" class="nav-item active">
+            <svg viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5 1.5-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"></path></svg>
+            Guardia
+        </a>
+        <a href="organizador.html" class="nav-item">
+            <svg viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z"></path></svg>
+            Viernes
+        </a>
+        <a href="#" class="nav-item">
+            <svg viewBox="0 0 24 24"><path d="M6.76 4.84l-1.8-1.79-1.41 1.41 1.79 1.8 1.42-1.42zM4 10.5H1v2h3v-2zm9-6.8V1h-2v2.7h2zM11 21.3V24h2v-2.7h-2zM18.66 5.42l1.79-1.8-1.41-1.41-1.8 1.79 1.42 1.42zM23 10.5h-3v2h3v-2zm-4.34 7.66l1.8 1.79 1.41-1.41-1.79-1.8-1.42 1.42zM5.54 16.74l-1.8 1.8 1.41 1.41 1.8-1.79-1.41-1.42zM12 5.5c-3.58 0-6.5 2.92-6.5 6.5s2.92 6.5 6.5 6.5 6.5-2.92 6.5-6.5-2.92-6.5-6.5-6.5z"></path></svg>
+            Intensiva
+        </a>
+    </nav>
+
+    <script>
+        const SUPABASE_URL = "https://ipxuihzkakirvlszxknd.supabase.co";
+        const SUPABASE_ANON_KEY = "sb_publishable_wCYOFOlX8FqkKXPIJ_u1bg_1o2C5La5";
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        const nombresMeses = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+        const diasSemanaLetras = ["L", "M", "X", "J", "V", "S", "D"];
+        
+        let anioActual = 2026;
+        let modoVacacionesActual = 'Joaquín';
+
+        let vacacionesPorAnio = { 2026: { Joaquín: {}, Sergio: {} }, 2027: { Joaquín: {}, Sergio: {} } };
+        let semanasPorAnio = { 2026: [], 2027: [] };
+
+        function obtenerFechaLocalTexto(fecha) {
+            const anio = fecha.getFullYear();
+            const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+            const dia = String(fecha.getDate()).padStart(2, '0');
+            return `${anio}-${mes}-${dia}`;
+        }
+
+        function inicializarSemanas() {
+            let fechaIteracion2026 = new Date(2025, 11, 29); 
+            let titularActual = 'Sergio'; 
+
+            for (let i = 0; i < 54; i++) {
+                let lunes = new Date(fechaIteracion2026);
+                let domingo = new Date(fechaIteracion2026);
+                domingo.setDate(lunes.getDate() + 6);
+                let mesCobro = domingo.getMonth(); 
+                if (domingo.getFullYear() !== 2026) mesCobro = domingo.getFullYear() < 2026 ? -1 : 12;
+
+                semanasPorAnio[2026].push({ id: i, lunes: lunes, domingo: domingo, titularBase: titularActual, mesCobro: mesCobro });
+                titularActual = (titularActual === 'Sergio') ? 'Joaquín' : 'Sergio';
+                fechaIteracion2026.setDate(fechaIteracion2026.getDate() + 7);
+            }
+
+            let ultimaSemana2026 = semanasPorAnio[2026][semanasPorAnio[2026].length - 1];
+            let titularInicio2027 = (ultimaSemana2026.titularBase === 'Sergio') ? 'Joaquín' : 'Sergio';
+
+            let fechaIteracion2027 = new Date(2026, 11, 28); 
+            titularActual = titularInicio2027;
+
+            for (let i = 0; i < 54; i++) {
+                let lunes = new Date(fechaIteracion2027);
+                let domingo = new Date(fechaIteracion2027);
+                domingo.setDate(lunes.getDate() + 6);
+                let mesCobro = domingo.getMonth(); 
+                if (domingo.getFullYear() !== 2027) mesCobro = domingo.getFullYear() < 2027 ? -1 : 12;
+
+                semanasPorAnio[2027].push({ id: i, lunes: lunes, domingo: domingo, titularBase: titularActual, mesCobro: mesCobro });
+                titularActual = (titularActual === 'Sergio') ? 'Joaquín' : 'Sergio';
+                fechaIteracion2027.setDate(fechaIteracion2027.getDate() + 7);
+            }
+        }
+
+        async function cargarDatosNube() {
+            try {
+                const { data, error } = await supabaseClient.from('vacaciones').select('*');
+                if (error) throw error;
+                if (data) {
+                    vacacionesPorAnio = { 2026: { Joaquín: {}, Sergio: {} }, 2027: { Joaquín: {}, Sergio: {} } };
+                    data.forEach(registro => {
+                        if (vacacionesPorAnio[registro.anio] && vacacionesPorAnio[registro.anio][registro.usuario]) {
+                            vacacionesPorAnio[registro.anio][registro.usuario][registro.fecha] = true;
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error("Error Supabase:", error);
+            } finally {
+                actualizarPanelesEfectivos();
+                renderizarCalendarioCompleto();
+            }
+        }
+
+        function analizarDiaEfectivo(fecha, anio) {
+            const semanas = semanasPorAnio[anio];
+            const semana = semanas.find(s => fecha >= s.lunes && fecha <= s.domingo);
+            if (!semana) return { titularBase: null, titularEfectivo: null, semanaId: null };
+
+            const fechaStr = obtenerFechaLocalTexto(fecha);
+            const vacasJoaquin = vacacionesPorAnio[anio].Joaquín[fechaStr] || false;
+            const vacasSergio = vacacionesPorAnio[anio].Sergio[fechaStr] || false;
+
+            let titularBase = semana.titularBase;
+            let titularEfectivo = titularBase;
+
+            if (titularBase === 'Sergio' && vacasSergio) {
+                titularEfectivo = 'Joaquín';
+            } else if (titularBase === 'Joaquín' && vacasJoaquin) {
+                titularEfectivo = 'Sergio';
+            }
+
+            return {
+                semanaId: semana.id, mesCobro: semana.mesCobro, titularBase: titularBase, titularEfectivo: titularEfectivo, vacasJoaquin: vacasJoaquin, vacasSergio: vacasSergio
+            };
+        }
+
+        function calcularGuardiasMensuales() {
+            let cobros = { Sergio: Array(12).fill(0), Joaquín: Array(12).fill(0) };
+            const semanas = semanasPorAnio[anioActual];
+            const vacasAnio = vacacionesPorAnio[anioActual];
+
+            semanas.forEach(semana => {
+                if (semana.mesCobro < 0 || semana.mesCobro > 11) return;
+                let titularOriginal = semana.titularBase;
+                let compañero = (titularOriginal === 'Sergio') ? 'Joaquín' : 'Sergio';
+                let tieneVacacionesElOriginal = false;
+
+                for (let d = 0; d < 7; d++) {
+                    let diaAux = new Date(semana.lunes);
+                    diaAux.setDate(semana.lunes.getDate() + d);
+                    let diaAuxStr = obtenerFechaLocalTexto(diaAux);
+                    if (vacasAnio[titularOriginal][diaAuxStr]) { tieneVacacionesElOriginal = true; break; }
+                }
+
+                if (!tieneVacacionesElOriginal) cobros[titularOriginal][semana.mesCobro]++;
+                else cobros[compañero][semana.mesCobro]++;
+            });
+            return cobros;
+        }
+
+        function actualizarPanelesEfectivos() {
+            const datos = calcularGuardiasMensuales();
+            const listaSergio = document.getElementById('lista-meses-sergio');
+            const listaJoaquin = document.getElementById('lista-meses-joaquin');
+            listaSergio.innerHTML = ''; listaJoaquin.innerHTML = '';
+            let totalS = 0, totalJ = 0;
+
+            nombresMeses.forEach((mes, index) => {
+                let mS = datos.Sergio[index]; let mJ = datos.Joaquín[index];
+                totalS += mS; totalJ += mJ;
+                let abr = mes.substring(0, 3);
+                listaSergio.innerHTML += `<div class="mes-item">${abr} <span>${mS}</span></div>`;
+                listaJoaquin.innerHTML += `<div class="mes-item">${abr} <span>${mJ}</span></div>`;
+            });
+
+            document.getElementById('total-sergio').innerText = `Total Año: ${totalS}`;
+            document.getElementById('total-joaquin').innerText = `Total Año: ${totalJ}`;
+        }
+
+        async function conmutarVacaciones(fechaStr) {
+            let compañero = (modoVacacionesActual === 'Joaquín') ? 'Sergio' : 'Joaquín';
+            let vacasAnio = vacacionesPorAnio[anioActual];
+            let accionCompañero = null, accionPrincipal = null;
+
+            if (vacasAnio[compañero][fechaStr]) { delete vacasAnio[compañero][fechaStr]; accionCompañero = 'borrar'; }
+
+            if (vacasAnio[modoVacacionesActual][fechaStr]) {
+                delete vacasAnio[modoVacacionesActual][fechaStr]; accionPrincipal = 'borrar';
+            } else {
+                vacasAnio[modoVacacionesActual][fechaStr] = true; accionPrincipal = 'insertar';
+            }
+            
+            actualizarPanelesEfectivos(); renderizarCalendarioCompleto(); ejecutarBusqueda();
+
+            try {
+                if (accionCompañero === 'borrar') {
+                    await supabaseClient.from('vacaciones').delete().eq('anio', anioActual).eq('usuario', compañero).eq('fecha', fechaStr);
+                }
+                if (accionPrincipal === 'insertar') {
+                    await supabaseClient.from('vacaciones').insert([{ anio: anioActual, usuario: modoVacacionesActual, fecha: fechaStr }]);
+                } else if (accionPrincipal === 'borrar') {
+                    await supabaseClient.from('vacaciones').delete().eq('anio', anioActual).eq('usuario', modoVacacionesActual).eq('fecha', fechaStr);
+                }
+            } catch (error) { console.error("Error Supabase:", error); }
+        }
+
+        function renderizarCalendarioCompleto() {
+            const contenedor = document.getElementById('calendario-completo');
+            contenedor.innerHTML = '';
+
+            for (let mesIndex = 0; mesIndex < 12; mesIndex++) {
+                let mesDiv = document.createElement('div'); mesDiv.className = 'mes-contenedor';
+                let titulo = document.createElement('div'); titulo.className = 'mes-titulo'; titulo.innerText = nombresMeses[mesIndex];
+                mesDiv.appendChild(titulo);
+
+                let semanaLetrasDiv = document.createElement('div'); semanaLetrasDiv.className = 'dias-semana-grid';
+                diasSemanaLetras.forEach(l => { let d = document.createElement('div'); d.innerText = l; semanaLetrasDiv.appendChild(d); });
+                mesDiv.appendChild(semanaLetrasDiv);
+
+                let diasGrid = document.createElement('div'); diasGrid.className = 'dias-grid';
+                let primerDiaMes = new Date(anioActual, mesIndex, 1);
+                let diaInicioSemana = primerDiaMes.getDay() - 1; if (diaInicioSemana === -1) diaInicioSemana = 6; 
+
+                for (let v = 0; v < diaInicioSemana; v++) {
+                    let vacio = document.createElement('div'); vacio.className = 'dia vacio'; diasGrid.appendChild(vacio);
+                }
+
+                let diasEnMes = new Date(anioActual, mesIndex + 1, 0).getDate();
+                for (let d = 1; d <= diasEnMes; d++) {
+                    let fechaActual = new Date(anioActual, mesIndex, d);
+                    let fechaStr = obtenerFechaLocalTexto(fechaActual);
+                    let diaDiv = document.createElement('div'); diaDiv.className = 'dia'; diaDiv.innerText = d;
+
+                    let info = analizarDiaEfectivo(fechaActual, anioActual);
+                    if (info.titularEfectivo === 'Sergio') diaDiv.classList.add('guardia-sergio');
+                    else if (info.titularEfectivo === 'Joaquín') diaDiv.classList.add('guardia-joaquin');
+
+                    if (info.vacasJoaquin) diaDiv.classList.add('v-joaquin');
+                    if (info.vacasSergio) diaDiv.classList.add('v-sergio');
+
+                    diaDiv.addEventListener('click', () => conmutarVacaciones(fechaStr));
+                    diasGrid.appendChild(diaDiv);
+                }
+                mesDiv.appendChild(diasGrid); contenedor.appendChild(mesDiv);
+            }
+        }
+
+        function cambiarAnio(nuevoAnio) {
+            anioActual = nuevoAnio;
+            document.getElementById('titulo-principal').innerText = `Guardias ${nuevoAnio}`;
+            document.getElementById('label-buscador').innerText = ` Buscador rápido de guardia (${nuevoAnio}):`;
+            
+            const inputFecha = document.getElementById('buscar-fecha');
+            inputFecha.min = `${nuevoAnio}-01-01`; inputFecha.max = `${nuevoAnio}-12-31`; inputFecha.value = ''; 
+
+            document.querySelectorAll('.btn-anio').forEach(btn => {
+                if(btn.innerText == nuevoAnio) btn.classList.add('activo');
+                else btn.classList.remove('activo');
+            });
+
+            actualizarPanelesEfectivos(); renderizarCalendarioCompleto(); ejecutarBusqueda();
+        }
+
+        function ejecutarBusqueda() {
+            const inputFecha = document.getElementById('buscar-fecha').value;
+            const resultadoDiv = document.getElementById('resultado-busqueda');
+            if (!inputFecha) { resultadoDiv.innerHTML = ""; return; }
+
+            const fechaPartes = inputFecha.split('-');
+            const fechaSelec = new Date(fechaPartes[0], fechaPartes[1] - 1, fechaPartes[2]);
+            if (fechaSelec.getFullYear() !== anioActual) {
+                resultadoDiv.innerHTML = `❌ El buscador está configurado para el año ${anioActual}.`;
+                return;
+            }
+
+            let info = analizarDiaEfectivo(fechaSelec, anioActual);
+            const semanaObj = semanasPorAnio[anioActual].find(s => info.semanaId === s.id);
+            const opciones = { day: 'numeric', month: 'short' };
+            const formatLunes = semanaObj.lunes.toLocaleDateString('es-ES', opciones);
+            const formatDomingo = semanaObj.domingo.toLocaleDateString('es-ES', opciones);
+
+            let txtVacaciones = "";
+            if (info.vacasJoaquin || info.vacasSergio) {
+                txtVacaciones = ` <span style="font-size:0.85rem; color:var(--primary); font-weight:bold;">(`;
+                if (info.vacasJoaquin) txtVacaciones += "Joaquín VAC ● ";
+                if (info.vacasSergio) txtVacaciones += "Sergio VAC ●";
+                txtVacaciones += ")</span>";
+            }
+
+            let colorTexto = info.titularEfectivo === 'Sergio' ? 'var(--sergio-color)' : 'var(--joaquin-color)';
+            resultadoDiv.innerHTML = `Semana del <strong>${formatLunes}</strong> al <strong>${formatDomingo}</strong>: <span style="color: ${colorTexto}; font-size:1.1rem; font-family:'Space Grotesk'; font-weight:bold;">DE GUARDIA: ${info.titularEfectivo.toUpperCase()}</span>${txtVacaciones}`;
+        }
+
+        function limpiarBusqueda() { document.getElementById('buscar-fecha').value = ''; ejecutarBusqueda(); }
+
+        document.querySelectorAll('.btn-modo').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.btn-modo').forEach(b => b.classList.remove('activo'));
+                e.target.classList.add('activo');
+                modoVacacionesActual = e.target.getAttribute('data-modo');
+            });
+        });
+
+        document.getElementById('buscar-fecha').addEventListener('input', ejecutarBusqueda);
+
+        inicializarSemanas();
+        actualizarPanelesEfectivos();
+        renderizarCalendarioCompleto();
+        cargarDatosNube();
+    </script>
+</body>
+</html>
