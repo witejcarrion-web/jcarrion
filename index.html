@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vacaciones 2026-2027 — Bauhaus Neo-Brutalist</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Space+Grotesk:wght@700&display=swap" rel="stylesheet">
+
+    <style>
+        /* --- VARIABLES DE DISEÑO (DESIGN.md) --- */
+        :root { 
+            --bg: #f5f0e8;          /* Warm off-white, aged paper */
+            --primary: #1a1a1a;     /* Near-black para texto y bordes */
+            --accent-yellow: #ffcc00; /* High-energy para estados activos */
+            --accent-blue: #0055ff;  /* Elementos interactivos */
+            
+            --border-thick: 3px solid #1a1a1a;
+            --shadow-offset: 5px 5px 0px #1a1a1a;
+        }
+        
+        /* --- RESET Y CONFIGURACIÓN GLOBAL --- */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body { 
+            background: var(--bg); 
+            color: var(--primary); 
+            font-family: 'Inter', sans-serif; 
+            padding: 20px; 
+        }
+        
+        .container { max-width: 1100px; margin: 0 auto; }
+        
+        .header-flex {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: var(--border-thick);
+            margin: 20px 0 35px 0;
+            padding-bottom: 15px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .header-flex h2 { 
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 3.5rem;
+            text-transform: uppercase;
+            font-weight: 700; 
+            line-height: 0.9;
+            letter-spacing: -1px; 
+        }
+
+        @media (max-width: 768px) {
+            .header-flex h2 { font-size: 2.2rem; }
+            .header-flex { justify-content: center; text-align: center; }
+        }
+
+        h3 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .year-switcher {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-anio { 
+            font-family: 'Space Grotesk', sans-serif;
+            padding: 10px 20px; 
+            border: var(--border-thick); 
+            background: #ffffff; 
+            color: var(--primary); 
+            cursor: pointer; 
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 1rem;
+            box-shadow: var(--shadow-offset);
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+
+        .btn-anio:hover {
+            background: var(--primary);
+            color: #ffffff;
+        }
+
+        .btn-anio.active { 
+            background: var(--accent-yellow); 
+            color: var(--primary); 
+            transform: translate(2px, 2px);
+            box-shadow: 2px 2px 0px var(--primary);
+        }
+        
+        /* --- SELECTOR DE USUARIOS --- */
+        .selector { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); 
+            gap: 12px; 
+            margin-bottom: 30px; 
+            width: 100%;
+        }
+
+        .user-card { 
+            padding: 12px; 
+            background: #ffffff; 
+            border: var(--border-thick); 
+            cursor: pointer; 
+            text-align: center; 
+            box-shadow: var(--shadow-offset);
+        }
+
+        .user-card.active { 
+            background: var(--accent-yellow);
+            transform: translate(3px, 3px);
+            box-shadow: 2px 2px 0px var(--primary);
+        }
+
+        .user-card strong { 
+            display: block; 
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.1rem; 
+            text-transform: uppercase;
+        }
+        
+        /* --- PANEL DE RESUMEN --- */
+        .resumen-panel { 
+            background: #ffffff; 
+            padding: 20px; 
+            margin-bottom: 35px; 
+            border: var(--border-thick);
+            box-shadow: var(--shadow-offset);
+        }
+
+        .resumen-panel h3 { 
+            font-size: 1.3rem; 
+            border-bottom: var(--border-thick); 
+            padding-bottom: 8px; 
+            margin-bottom: 15px; 
+        }
+
+        .resumen-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; }
+        .resumen-item { font-size: 0.9rem; }
+        .resumen-item-lineas { margin-top: 8px; padding-left: 10px; border-left: 3px solid transparent; }
+        
+        /* --- CALENDARIO --- */
+        .calendario { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); 
+            gap: 24px; 
+        }
+
+        .mes-card { 
+            background: #ffffff; 
+            padding: 16px; 
+            border: var(--border-thick);
+            box-shadow: var(--shadow-offset);
+        }
+
+        .mes-card h3 { 
+            text-align: left; 
+            font-size: 1.4rem; 
+            color: var(--primary); 
+            margin-bottom: 12px; 
+            border-bottom: 2px solid var(--primary);
+            padding-bottom: 4px;
+        }
+        
+        .grid-header { 
+            display: grid; 
+            grid-template-columns: repeat(7, 1fr); 
+            text-align: center; 
+            font-size: 0.8rem; 
+            font-weight: 700; 
+            font-family: 'Space Grotesk', sans-serif;
+            margin-bottom: 8px;
+        }
+
+        .grid-dias { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+        
+        .dia { 
+            min-height: 44px; 
+            background: transparent; 
+            display: flex; 
+            flex-direction: column; 
+            cursor: pointer; 
+            position: relative; 
+            border: 2px solid var(--primary);
+        }
+        
+        .day-num { 
+            font-size: 0.75rem; 
+            padding: 3px 5px; 
+            font-weight: 700; 
+            align-self: flex-start;
+            line-height: 1;
+        }
+        
+        .bloque-color { 
+            flex: 1; 
+            width: 100%; 
+            min-height: 16px; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.52rem; 
+            font-weight: 700;
+            font-family: 'Space Grotesk', sans-serif;
+            text-transform: uppercase;
+            color: #ffffff;
+            border-top: 1px solid var(--primary);
+            line-height: 1;
+            padding: 4px 0; 
+        }
+
+        /* --- MODAL EXPORTAR --- */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(26, 26, 26, 0.6);
+            backdrop-filter: blur(2px);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: var(--bg);
+            border: var(--border-thick);
+            box-shadow: var(--shadow-offset);
+            padding: 24px;
+            max-width: 440px;
+            width: 90%;
+        }
+
+        .modal-grid-meses {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin: 16px 0 24px 0;
+        }
+
+        .modal-label-mes {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .modal-label-mes input {
+            width: 18px; height: 18px;
+            accent-color: var(--accent-blue);
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header-flex">
+        <h2>Panel de Vacaciones</h2>
+        <div class="year-switcher">
+            <button id="btn-exportar" class="btn-anio" style="background: var(--accent-blue); color: #ffffff;" onclick="abrirModalExportar()">Exportar</button>
+            <button id="b2026" class="btn-anio" onclick="setAnio(2026)">2026</button>
+            <button id="b2027" class="btn-anio" onclick="setAnio(2027)">2027</button>
+        </div>
+    </div>
+    
+    <div id="selector" class="selector"></div>
+    <div id="resumen" class="resumen-panel"></div>
+    <div id="cal" class="calendario"></div>
+</div>
+
+<div id="modal-exportar" class="modal-overlay">
+    <div class="modal-content">
+        <h3>Exportar Calendario (PDF)</h3>
+        <button id="btn-exportar-todo" class="btn-anio" style="width: 100%; background: var(--accent-yellow); margin-bottom: 20px;" onclick="exportarTodo()">
+            Exportar Año Completo
+        </button>
+        
+        <p style="font-family: 'Space Grotesk'; font-weight: 700; text-transform: uppercase; font-size: 0.85rem;">
+            O selecciona meses específicos:
+        </p>
+        
+        <div id="modal-lista-meses" class="modal-grid-meses"></div>
+        
+        <div style="display: flex; gap: 12px;">
+            <button id="btn-exportar-sel" class="btn-anio" style="flex: 1; background: var(--primary); color: #ffffff;" onclick="exportarSeleccionados()">
+                Exportar Selección
+            </button>
+            <button class="btn-anio" style="flex: 1; background: #ef4444; color: #ffffff;" onclick="cerrarModalExportar()">
+                Cancelar
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const sb = window.supabase.createClient("https://ipxuihzkakirvlszxknd.supabase.co", "sb_publishable_wCYOFOlX8FqkKXPIJ_u1bg_1o2C5La5");
+    
+    const users = { 'Joaquin': '#16a34a', 'Juan': '#a855f7', 'Leon': '#ef4444', 'Sergio': '#eab308' };
+    const mesesNombres = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+    const ordenGuardia = ['Joaquin', 'Juan', 'Sergio', 'Leon'];
+    const fechaBaseGuardia = new Date(2026, 5, 5); 
+
+    let anio = 2026, activeUser = 'Joaquin', datos = {};
+
+    async function cargar() {
+        const { data } = await sb.from('vacaciones_v2').select('*').eq('anio', anio);
+        datos = {};
+        data?.forEach(r => { if(!datos[r.fecha]) datos[r.fecha] = []; datos[r.fecha].push(r.usuario); });
+        render();
+    }
+
+    async function toggle(f) {
+        if(!datos[f]) datos[f] = [];
+        const idx = datos[f].indexOf(activeUser);
+        if(idx > -1) {
+            datos[f].splice(idx, 1);
+            render();
+            await sb.from('vacaciones_v2').delete().eq('fecha', f).eq('usuario', activeUser).eq('anio', anio);
+        } else if(datos[f].length < 3) {
+            datos[f].push(activeUser);
+            render();
+            await sb.from('vacaciones_v2').insert({fecha: f, usuario: activeUser, anio: anio});
+        }
+    }
+
+    function render() {
+        document.getElementById('b2026').classList.toggle('active', anio === 2026);
+        document.getElementById('b2027').classList.toggle('active', anio === 2027);
+        
+        document.getElementById('selector').innerHTML = Object.keys(users).map(u => {
+            const total = Object.keys(datos).filter(f => {
+                if(!datos[f].includes(u)) return false; 
+                const [y, m, d] = f.split('-');
+                const dayOfWeek = new Date(y, m - 1, d).getDay();
+                return dayOfWeek !== 0 && dayOfWeek !== 6;
+            }).length;
+            
+            return `<div class="user-card ${activeUser === u ? 'active' : ''}" onclick="activeUser='${u}'; render()">
+                <span style="color:${users[u]}; font-size: 1.1rem; vertical-align: middle;">●</span>
+                <strong>${u}</strong>
+                <div class="total-box">${total} días</div>
+            </div>`;
+        }).join('');
+
+        let resHtml = '<h3>Resumen de Días Seleccionados</h3><div class="resumen-grid">';
+        Object.keys(users).forEach(u => {
+            resHtml += `<div class="resumen-item">
+                <span style="color:${users[u]}; font-weight: 700; font-size: 1.05rem; font-family: 'Space Grotesk'; text-transform: uppercase;">● ${u}</span>
+                <div class="resumen-item-lineas" style="border-left-color: ${users[u]}">`;
+            
+            let tieneDatos = false;
+            mesesNombres.forEach((m, i) => {
+                const dias = Object.keys(datos)
+                    .filter(f => f.startsWith(`${anio}-${String(i+1).padStart(2,'0')}`) && datos[f].includes(u))
+                    .map(f => f.split('-')[2])
+                    .sort((a, b) => parseInt(a) - parseInt(b));
+                
+                if(dias.length > 0) {
+                    resHtml += `<b style="color: var(--primary); font-family: 'Space Grotesk';">${m}:</b> ${dias.join(', ')}<br>`;
+                    tieneDatos = true;
+                }
+            });
+            if(!tieneDatos) resHtml += `<span style="color: #71717a; font-style: italic;">Sin días elegidos</span>`;
+            resHtml += `</div></div>`;
+        });
+        document.getElementById('resumen').innerHTML = resHtml + '</div>';
+
+        const cal = document.getElementById('cal'); cal.innerHTML = '';
+        mesesNombres.forEach((m, idx) => {
+            const mesDiv = document.createElement('div'); mesDiv.className = 'mes-card';
+            mesDiv.innerHTML = `<h3>${m}</h3>
+                <div class="grid-header"><span>L</span><span>M</span><span>M</span><span>J</span><span>V</span><span>S</span><span>D</span></div>
+                <div class="grid-dias" id="m${idx}"></div>`;
+            cal.appendChild(mesDiv);
+            
+            const grid = mesDiv.querySelector('#m'+idx);
+            const firstDayRaw = new Date(anio, idx, 1).getDay();
+            const adjustedFirstDay = (firstDayRaw + 6) % 7; 
+            const daysInMonth = new Date(anio, idx + 1, 0).getDate();
+            
+            for(let i=0; i<adjustedFirstDay; i++) grid.appendChild(document.createElement('div'));
+            
+            for(let d=1; d<=daysInMonth; d++) {
+                const f = `${anio}-${String(idx+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+                const div = document.createElement('div'); div.className = 'dia';
+                
+                const fechaActual = new Date(anio, idx, d);
+                const isFriday = fechaActual.getDay() === 5;
+                let estiloNumero = '';
+                
+                if (isFriday) {
+                    const diffTime = fechaActual.getTime() - fechaBaseGuardia.getTime();
+                    const diffDays = Math.round(diffTime / (1000 * 3600 * 24));
+                    const diffWeeks = diffDays / 7;
+                    const turnoIndex = ((diffWeeks % 4) + 4) % 4; 
+                    const guardiaPersona = ordenGuardia[turnoIndex];
+                    estiloNumero = `style="color: ${users[guardiaPersona]}; font-size: 0.9rem; font-weight: 800; font-family: 'Space Grotesk';"`;
+                }
+                
+                let innerContenido = `<span class="day-num" ${estiloNumero}>${d}</span>`;
+                if(datos[f]) {
+                    datos[f].forEach(u => {
+                        innerContenido += `<div class="bloque-color" style="background:${users[u]}">${u}</div>`;
+                    });
+                }
+                
+                div.innerHTML = innerContenido;
+                div.onclick = () => toggle(f);
+                grid.appendChild(div);
+            }
+        });
+    }
+
+    function abrirModalExportar() {
+        const contenedor = document.getElementById('modal-lista-meses');
+        contenedor.innerHTML = mesesNombres.map((m, idx) => `
+            <label class="modal-label-mes">
+                <input type="checkbox" value="${idx}" class="chk-mes-exportar">
+                <span>${m}</span>
+            </label>
+        `).join('');
+        document.getElementById('modal-exportar').style.display = 'flex';
+    }
+
+    function cerrarModalExportar() {
+        document.getElementById('modal-exportar').style.display = 'none';
+    }
+
+    function exportarTodo() {
+        generarPDFCalendario([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+    }
+
+    function exportarSeleccionados() {
+        const checkboxes = document.querySelectorAll('.chk-mes-exportar:checked');
+        const mesesSeleccionados = Array.from(checkboxes).map(chk => parseInt(chk.value));
+        if (mesesSeleccionados.length === 0) {
+            alert('Por favor, selecciona al menos un mes para exportar.');
+            return;
+        }
+        generarPDFCalendario(mesesSeleccionados);
+    }
+
+    /* --- ENTORNO SEGURO DE EXPORTACIÓN (INTERCAMBIO DE DOM) --- */
+    
+function generarPDFCalendario(listaMeses) {
+    const btnTodo = document.getElementById('btn-exportar-todo');
+    const btnSel = document.getElementById('btn-exportar-sel');
+
+    btnTodo.innerText = "Procesando...";
+    btnSel.innerText = "Procesando...";
+
+    const printOverlay = document.createElement('div');
+    printOverlay.id = 'print-overlay-temp';
+    printOverlay.style.width = '1100px';
+    printOverlay.style.background = '#f5f0e8';
+    printOverlay.style.padding = '20px';
+    printOverlay.style.position = 'absolute';
+    printOverlay.style.left = '-99999px';
+
+    // --- CONSTRUIR LA SECCIÓN DINÁMICA DE INFORMÁTICA ---
+    let leyendaInner = `
+        <div style="margin-top: 10px; margin-bottom: 30px; padding: 20px; border: 3px solid #1a1a1a; background: #ffffff; box-shadow: 5px 5px 0px #1a1a1a;">
+            <h3 style="font-family: 'Space Grotesk', sans-serif; text-transform: uppercase; text-align: center; margin-bottom: 20px; border-bottom: 2px solid #1a1a1a; padding-bottom: 10px;">Informatica</h3>
+            <div style="display: flex; justify-content: center; gap: 30px; flex-wrap: wrap;">
+    `;
+    
+    for (const [nombre, color] of Object.entries(users)) {
+        leyendaInner += `
+            <div style="display: flex; align-items: center; gap: 10px; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 1.2rem; text-transform: uppercase;">
+                <div style="width: 24px; height: 24px; background-color: ${color}; border: 2px solid #1a1a1a;"></div>
+                <span>${nombre}</span>
+            </div>
+        `;
+    }
+    leyendaInner += `</div></div>`;
+
+    // Insertamos la sección directamente debajo del encabezado principal del PDF
+    printOverlay.innerHTML = `
+        <div style="border-bottom:3px solid #1a1a1a;padding-bottom:20px;margin-bottom:20px;">
+            <h1 style="font-family:'Space Grotesk',sans-serif;">Vacaciones ${anio}</h1>
+        </div>
+        ${leyendaInner}
+        <div id="print-grid" class="calendario"></div>
+    `;
+
+    const gridDestino = printOverlay.querySelector('#print-grid');
+    const todosLosMesesCards = document.querySelectorAll('.mes-card');
+
+    listaMeses.forEach(idx => {
+        if (todosLosMesesCards[idx]) {
+            gridDestino.appendChild(todosLosMesesCards[idx].cloneNode(true));
+        }
+    });
+
+    document.body.appendChild(printOverlay);
+
+    html2canvas(printOverlay, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#f5f0e8'
+    }).then(canvas => {
+
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF('p', 'mm', 'a4');
+
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+
+        const margen = 15;
+
+        const maxWidth = pageWidth - (margen * 2);
+        const maxHeight = pageHeight - (margen * 2);
+
+        let imgWidth = maxWidth;
+        let imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+        if (imgHeight > maxHeight) {
+            imgHeight = maxHeight;
+            imgWidth = (canvas.width * imgHeight) / canvas.height;
+        }
+
+        const x = (pageWidth - imgWidth) / 2;
+        const y = (pageHeight - imgHeight) / 2;
+
+        pdf.addImage(
+            canvas.toDataURL('image/jpeg', 1.0),
+            'JPEG',
+            x,
+            y,
+            imgWidth,
+            imgHeight
+        );
+
+        pdf.save(`Calendario_Vacaciones_${anio}.pdf`);
+
+        printOverlay.remove();
+
+        btnTodo.innerText = "Exportar Año Completo";
+        btnSel.innerText = "Exportar Selección";
+
+        cerrarModalExportar();
+
+    }).catch(err => {
+
+        console.error(err);
+
+        printOverlay.remove();
+
+        btnTodo.innerText = "Exportar Año Completo";
+        btnSel.innerText = "Exportar Selección";
+    });
+}
+    cargar();
+</script>
+</body>
+</html>
